@@ -15,6 +15,7 @@ app.use(
       "http://localhost:5173",
       process.env.FORNTEND_URL,
       "https://relyzers.shop",
+      "https://assuredjob.com"
     ], // Only allow frontend
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     credentials: true, // If using cookies/auth tokens
