@@ -15,7 +15,7 @@ app.use(
       "http://localhost:5173",
       process.env.FORNTEND_URL,
       "https://relyzers.shop",
-      "https://assuredjob.com"
+      "https://assuredjob.com",
     ], // Only allow frontend
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     credentials: true, // If using cookies/auth tokens
@@ -75,8 +75,8 @@ async function getAuthTokens() {
   } catch (error) {
     console.error("Error getting CEIPAL auth tokens:", error.message);
     if (error.response) {
-      console.error("Response status:error");
-      console.error("Response data:error");
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", JSON.stringify(error.response.data));
     }
     throw error;
   }
@@ -85,14 +85,17 @@ async function getAuthTokens() {
 // Function to refresh the access token using the refresh token
 async function refreshAccessToken() {
   try {
-    // According to documentation, send the access token in the headers as Token
+    // According to documentation, send the access token in the headers as Token with Bearer prefix
     const response = await axios.post(
       "https://api.ceipal.com/v1/refreshToken",
       {},
       {
         headers: {
           "Content-Type": "application/json",
-          Token: accessToken,
+          Token: `Bearer ${accessToken}`,
+        },
+        params: {
+          Token: accessToken, // Also required as a query parameter
         },
       }
     );
@@ -100,7 +103,7 @@ async function refreshAccessToken() {
     if (response.data && response.data.access_token) {
       accessToken = response.data.access_token;
       accessTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-
+      console.log("Successfully refreshed access token");
       return accessToken;
     } else {
       throw new Error("Failed to refresh access token");
@@ -108,16 +111,13 @@ async function refreshAccessToken() {
   } catch (error) {
     console.error("Error refreshing access token:", error.message);
     if (error.response) {
-      console.error("Response status:");
-      console.error("Response data:");
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", JSON.stringify(error.response.data));
     }
 
-    // If refresh fails and refresh token is still valid, try getting new tokens
-    if (Date.now() < refreshTokenExpiry) {
-      return getAuthTokens();
-    } else {
-      throw new Error("Refresh token expired. Please authenticate again.");
-    }
+    // If refresh fails, get new tokens
+    console.log("Token refresh failed, getting new tokens...");
+    return getAuthTokens();
   }
 }
 
@@ -127,9 +127,7 @@ async function ensureToken(req, res, next) {
   try {
     // If we don't have tokens yet, get new ones
     if (!accessToken || !refreshToken) {
-      console.log(
-        "oh user don't have accestoke and refresh token token. now trying to get new one"
-      );
+      console.log("No tokens available. Getting new tokens...");
       await getAuthTokens();
     }
     // If access token is expired but refresh token is still valid
@@ -137,15 +135,17 @@ async function ensureToken(req, res, next) {
       Date.now() > accessTokenExpiry &&
       Date.now() < refreshTokenExpiry
     ) {
-      console.log("user have refreshtoken now trying to  refresh it");
+      console.log("Access token expired. Refreshing token...");
       await refreshAccessToken();
     }
     // If both tokens are expired, get new ones
     else if (Date.now() > refreshTokenExpiry) {
-      console.log("bothe token are expired now trying to get new one");
+      console.log("Both tokens expired. Getting new tokens...");
       await getAuthTokens();
     }
 
+    // Skip the validation test - it's causing 400 errors
+    // Just proceed with the current token
     next();
   } catch (error) {
     console.error("Authentication error:", error.message);
@@ -229,6 +229,39 @@ async function fetchAllJobsAndUpdateCache() {
     return allJobs;
   } catch (error) {
     console.error("Error fetching all jobs:", error.message);
+
+    // If we get a 403 error, our token might be invalid despite being unexpired
+    if (
+      error.response &&
+      (error.response.status === 403 || error.response.status === 401)
+    ) {
+      console.log(
+        `${error.response.status} error. Attempting to get new tokens...`
+      );
+      await getAuthTokens();
+
+      // Try one more time with the new token
+      try {
+        const retryEndpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=1`;
+        const retryResponse = await axios.get(retryEndpoint, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (retryResponse.data && retryResponse.data.results) {
+          // We got some data, return it
+          cachedJobs = retryResponse.data.results;
+          cacheTimestamp = Date.now();
+          return cachedJobs;
+        }
+      } catch (retryError) {
+        console.error("Retry failed:", retryError.message);
+        // Continue to throw the original error
+      }
+    }
+
     throw error;
   }
 }
@@ -258,24 +291,29 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
         console.error("Error fetching all jobs:", error.message);
 
         // If fetching all jobs fails, try to get at least the requested page
-        const endpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=${page}`;
-        const response = await axios.get(endpoint, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (response.data && response.data.results) {
-          // Return the single page result with a warning
-          console.log("Falling back to single page result");
-          return res.json({
-            ...response.data,
-            warning:
-              "Could not fetch all jobs. Results may not be sorted correctly.",
+        try {
+          const endpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=${page}`;
+          const response = await axios.get(endpoint, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
           });
-        } else {
-          throw error; // Re-throw if we couldn't get any results
+
+          if (response.data && response.data.results) {
+            // Return the single page result with a warning
+            console.log("Falling back to single page result");
+            return res.json({
+              ...response.data,
+              warning:
+                "Could not fetch all jobs. Results may not be sorted correctly.",
+            });
+          } else {
+            throw error; // Re-throw if we couldn't get any results
+          }
+        } catch (pageError) {
+          console.error("Failed to fetch single page:", pageError.message);
+          throw error; // Re-throw the original error
         }
       }
     }
@@ -284,6 +322,7 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const paginatedJobs = allJobs.slice(startIndex, endIndex);
+    console.log("paginated jobs: ", paginatedJobs.length);
     const totalPages = Math.ceil(allJobs.length / limit);
 
     // Construct response object similar to the API response
@@ -308,16 +347,24 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
   } catch (error) {
     console.error("Error fetching jobs from CEIPAL:", error.message);
     if (error.response) {
-      console.error("Response status:");
-      console.error("Response data:");
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", JSON.stringify(error.response.data));
     }
 
     // If there's an authentication error, try to get new tokens and retry
-    if (error.response && error.response.status === 401) {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
       try {
         console.log("Authentication error. Getting new tokens and retrying...");
         await getAuthTokens();
-        return res.redirect("/api/jobs");
+        return res.redirect(
+          "/api/jobs" +
+            (req.url.includes("?")
+              ? req.url.substring(req.url.indexOf("?"))
+              : "")
+        );
       } catch (authError) {
         console.error("Failed to refresh authentication:", authError.message);
       }
@@ -361,27 +408,32 @@ app.get("/api/searchjobs", ensureToken, async (req, res) => {
       } catch (error) {
         console.error("Error fetching all jobs for search:", error.message);
         // If fetching all jobs fails, try to get at least some results
-        const firstPageEndpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=1`;
-        const firstPageResponse = await axios.get(firstPageEndpoint, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (firstPageResponse.data && firstPageResponse.data.results) {
-          allJobs = firstPageResponse.data.results;
-          console.log("Falling back to first page results only");
-
-          // Sort by Created date (newest first)
-          allJobs.sort((a, b) => {
-            if (a.Created && b.Created) {
-              return (
-                new Date(b.Created).getTime() - new Date(a.Created).getTime()
-              );
-            }
-            return 0;
+        try {
+          const firstPageEndpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=1`;
+          const firstPageResponse = await axios.get(firstPageEndpoint, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
           });
+
+          if (firstPageResponse.data && firstPageResponse.data.results) {
+            allJobs = firstPageResponse.data.results;
+            console.log("Falling back to first page results only");
+
+            // Sort by Created date (newest first)
+            allJobs.sort((a, b) => {
+              if (a.Created && b.Created) {
+                return (
+                  new Date(b.Created).getTime() - new Date(a.Created).getTime()
+                );
+              }
+              return 0;
+            });
+          }
+        } catch (pageError) {
+          console.error("Failed to fetch first page:", pageError.message);
+          throw error; // Re-throw the original error
         }
       }
     }
@@ -426,17 +478,23 @@ app.get("/api/searchjobs", ensureToken, async (req, res) => {
   } catch (error) {
     console.error("Error searching jobs from CEIPAL:", error.message);
     if (error.response) {
-      console.error("Response status:");
-      console.error("Response data:");
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", JSON.stringify(error.response.data));
     }
 
     // If there's an authentication error, try to get new tokens and retry
-    if (error.response && error.response.status === 401) {
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
       try {
         console.log("Authentication error. Getting new tokens and retrying...");
         await getAuthTokens();
         return res.redirect(
-          "/api/searchjobs" + req.url.substring(req.url.indexOf("?"))
+          "/api/searchjobs" +
+            (req.url.includes("?")
+              ? req.url.substring(req.url.indexOf("?"))
+              : "")
         );
       } catch (authError) {
         console.error("Failed to refresh authentication:", authError.message);
@@ -451,7 +509,46 @@ app.get("/api/searchjobs", ensureToken, async (req, res) => {
   }
 });
 
+// Add a health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    tokenStatus: accessToken ? "available" : "not available",
+    cacheStatus: cachedJobs.length > 0 ? "populated" : "empty",
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Get all jobs at http://localhost:${PORT}/api/jobs`);
+
+  // Initial token fetch
+  getAuthTokens().catch((err) => {
+    console.error("Failed to get initial tokens:", err.message);
+  });
 });
+
+// Set up a periodic token refresh to prevent 403 errors
+const TOKEN_REFRESH_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+setInterval(async () => {
+  try {
+    console.log("Performing scheduled token refresh...");
+    await getAuthTokens();
+    console.log("Token refresh successful");
+  } catch (error) {
+    console.error("Scheduled token refresh failed:", error.message);
+  }
+}, TOKEN_REFRESH_INTERVAL);
+
+// Also refresh cache periodically to keep it fresh
+const CACHE_REFRESH_INTERVAL = 25 * 60 * 1000; // 25 minutes (slightly less than cache duration)
+setInterval(async () => {
+  try {
+    console.log("Performing scheduled cache refresh...");
+    await fetchAllJobsAndUpdateCache();
+    console.log("Cache refresh successful");
+  } catch (error) {
+    console.error("Scheduled cache refresh failed:", error.message);
+  }
+}, CACHE_REFRESH_INTERVAL);
