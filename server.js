@@ -378,6 +378,118 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
   }
 });
 
+//route to get career page jobs
+app.get("/api/skywingsjobs", ensureToken, async (req, res) => {
+  try {
+    const page = req.query.page ? Number.parseInt(req.query.page) : 1;
+    const limit = 100; // Items per page
+
+    // Check if we need to refresh the cache
+    const isCacheValid =
+      cachedJobs.length > 0 &&
+      cacheTimestamp &&
+      Date.now() - cacheTimestamp < CACHE_DURATION;
+
+    let allJobs = [];
+
+    if (isCacheValid) {
+      console.log("Using cached jobs data");
+      allJobs = cachedJobs;
+    } else {
+      console.log("Cache invalid or empty, fetching all jobs");
+      try {
+        allJobs = await fetchAllJobsAndUpdateCache();
+      } catch (error) {
+        console.error("Error fetching all jobs:", error.message);
+
+        // If fetching all jobs fails, try to get at least the requested page
+        try {
+          const endpoint = `https://api.ceipal.com/getCustomJobPostingDetails/Z3RkUkt2OXZJVld2MjFpOVRSTXoxZz09/ee4a96a9e2f7a822b0bb8ebb89b1c18c/?page=${page}`;
+          const response = await axios.get(endpoint, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.data && response.data.results) {
+            // Return the single page result with a warning
+            console.log("Falling back to single page result");
+            return res.json({
+              ...response.data,
+              warning:
+                "Could not fetch all jobs. Results may not be sorted correctly.",
+            });
+          } else {
+            throw error; // Re-throw if we couldn't get any results
+          }
+        } catch (pageError) {
+          console.error("Failed to fetch single page:", pageError.message);
+          throw error; // Re-throw the original error
+        }
+      }
+    }
+
+    // Calculate pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = page * limit;
+    const paginatedJobs = allJobs.slice(startIndex, endIndex);
+    console.log("paginated jobs: ", paginatedJobs.length);
+    const totalPages = Math.ceil(allJobs.length / limit);
+
+    // Construct response object similar to the API response
+    const response = {
+      count: allJobs.length,
+      num_pages: totalPages,
+      limit: limit,
+      page_number: page,
+      page_count: paginatedJobs.length,
+      next:
+        page < totalPages
+          ? `${req.protocol}://${req.get("host")}/api/jobs?page=${page + 1}`
+          : null,
+      previous:
+        page > 1
+          ? `${req.protocol}://${req.get("host")}/api/jobs?page=${page - 1}`
+          : null,
+      results: paginatedJobs,
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Error fetching jobs from CEIPAL:", error.message);
+    if (error.response) {
+      console.error("Response status:", error.response.status);
+      console.error("Response data:", JSON.stringify(error.response.data));
+    }
+
+    // If there's an authentication error, try to get new tokens and retry
+    if (
+      error.response &&
+      (error.response.status === 401 || error.response.status === 403)
+    ) {
+      try {
+        console.log("Authentication error. Getting new tokens and retrying...");
+        await getAuthTokens();
+        return res.redirect(
+          "/api/jobs" +
+            (req.url.includes("?")
+              ? req.url.substring(req.url.indexOf("?"))
+              : "")
+        );
+      } catch (authError) {
+        console.error("Failed to refresh authentication:", authError.message);
+      }
+    }
+
+    // Return an empty array or error message
+    res.status(500).json({
+      error: "Failed to fetch jobs from CEIPAL API",
+      message: error.message,
+    });
+  }
+});
+
 // Optimized search endpoint with parallel API calls
 app.get("/api/searchjobs", ensureToken, async (req, res) => {
   try {
