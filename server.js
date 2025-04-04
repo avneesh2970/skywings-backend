@@ -12,14 +12,16 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
-      // "http://localhost:5173",
-      process.env.FORNTEND_URL,
-      // "https://relyzers.shop",
-      // "https://assuredjob.com",
-      // "https://www.assuredjob.com",
-      // "https://career.assuredjob.com",
-      // "http://assuredjob.com"
-    ], // Only allow frontend
+      "http://localhost:5173",
+      process.env.FRONTEND_URL,
+      "https://relyzers.shop",
+      "https://assuredjob.com",
+      "http://assuredjob.com",
+      "https://www.assuredjob.com",
+      "https://career.assuredjob.com",
+      "http://assuredjob.com",
+      "https://api.ceipal.com",
+    ],
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     credentials: true, // If using cookies/auth tokens
   })
