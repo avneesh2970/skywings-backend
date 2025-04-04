@@ -12,10 +12,13 @@ const PORT = process.env.PORT || 5000;
 app.use(
   cors({
     origin: [
-      "http://localhost:5173",
+      // "http://localhost:5173",
       process.env.FORNTEND_URL,
-      "https://relyzers.shop",
-      "https://assuredjob.com",
+      // "https://relyzers.shop",
+      // "https://assuredjob.com",
+      // "https://www.assuredjob.com",
+      // "https://career.assuredjob.com",
+      // "http://assuredjob.com"
     ], // Only allow frontend
     methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
     credentials: true, // If using cookies/auth tokens
