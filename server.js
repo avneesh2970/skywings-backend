@@ -13,17 +13,18 @@ app.use(
   cors({
     origin: [
       "http://localhost:5173",
-      process.env.FRONTEND_URL,
       "https://relyzers.shop",
       "https://assuredjob.com",
       "http://assuredjob.com",
       "https://www.assuredjob.com",
       "https://career.assuredjob.com",
-      "http://assuredjob.com",
+      "https://skywingsadvisors.com",
+      "http://skywingsadvisors.com",
+      "https://www.skywingsadvisors.com",
       "https://api.ceipal.com",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
-    credentials: true, // If using cookies/auth tokens
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   })
 );
 app.use(express.json());
