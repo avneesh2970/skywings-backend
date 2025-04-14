@@ -8,6 +8,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const FRONTEND_URL_ASSUREDJOB = process.env.FRONTEND_URL_ASSUREDJOB;
+const FRONTEND_URL_SKYWINGS_ADVISOR = process.env.FRONTEND_URL_SKYWINGS_ADVISOR;
+
 // Middleware
 app.use(
   cors({
@@ -18,10 +21,14 @@ app.use(
       "http://assuredjob.com",
       "https://www.assuredjob.com",
       "https://career.assuredjob.com",
+      "https://career.skywingsadvisors.com",
+      "http://career.skywingsadvisors.com",
       "https://skywingsadvisors.com",
       "http://skywingsadvisors.com",
       "https://www.skywingsadvisors.com",
       "https://api.ceipal.com",
+      FRONTEND_URL_ASSUREDJOB,
+      FRONTEND_URL_SKYWINGS_ADVISOR,
     ],
     methods: ["GET", "POST", "PUT", "DELETE"],
     credentials: true,
