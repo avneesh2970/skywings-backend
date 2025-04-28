@@ -2,6 +2,15 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import axios from "axios";
+import { dbConnect } from "./lib/dbConnect.js";
+import path from "path";
+import { fileURLToPath } from "url";
+import blogRouter from "./routes/blog/posts.js";
+import blogUploadRouter from "./routes/blog/upload.js";
+import appRouter from "./routes/contactEnquiry/enquiry.js";
+import resumeRouter from "./routes/resume/resume.js";
+import newsletterRouter from "./routes/newsLetter/newsLetter.js";
+import eventRouter from "./routes/events/events.js";
 
 dotenv.config();
 
@@ -11,11 +20,16 @@ const PORT = process.env.PORT || 5000;
 const FRONTEND_URL_ASSUREDJOB = process.env.FRONTEND_URL_ASSUREDJOB;
 const FRONTEND_URL_SKYWINGS_ADVISOR = process.env.FRONTEND_URL_SKYWINGS_ADVISOR;
 
+// recreate __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // Middleware
 app.use(
   cors({
     origin: [
       "http://localhost:5173",
+      "http://localhost:5174",
       "https://relyzers.shop",
       "https://assuredjob.com",
       "http://assuredjob.com",
@@ -30,11 +44,12 @@ app.use(
       FRONTEND_URL_ASSUREDJOB,
       FRONTEND_URL_SKYWINGS_ADVISOR,
     ],
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true,
   })
 );
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Token storage
 let accessToken = null;
@@ -52,7 +67,7 @@ let totalPages = 16; // Default based on API response, will be updated dynamical
 // Function to get new tokens
 async function getAuthTokens() {
   try {
-    console.log("Getting new auth tokens from CEIPAL...");
+    // console.log("Getting new auth tokens from CEIPAL...");
     const response = await axios.post(
       "https://api.ceipal.com/v1/createAuthtoken",
       {
@@ -70,19 +85,19 @@ async function getAuthTokens() {
     if (response.data && response.data.access_token) {
       accessToken = response.data.access_token;
       refreshToken = response.data.refresh_token;
-      console.log(
-        "new auth token are: ",
-        accessToken,
-        "\n",
-        "refreshToken: ",
-        refreshToken
-      );
+      // console.log(
+      //   "new auth token are: ",
+      //   accessToken,
+      //   "\n",
+      //   "refreshToken: ",
+      //   refreshToken
+      // );
       // Set token expiry times according to documentation
       accessTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
       refreshTokenExpiry = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
       return accessToken;
     } else {
-      console.error("Unexpected response structure:");
+      // console.error("Unexpected response structure:");
       throw new Error("Failed to get access_token from response");
     }
   } catch (error) {
@@ -116,7 +131,7 @@ async function refreshAccessToken() {
     if (response.data && response.data.access_token) {
       accessToken = response.data.access_token;
       accessTokenExpiry = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
-      console.log("Successfully refreshed access token");
+      // console.log("Successfully refreshed access token");
       return accessToken;
     } else {
       throw new Error("Failed to refresh access token");
@@ -136,11 +151,11 @@ async function refreshAccessToken() {
 
 // Middleware to ensure we have a valid token
 async function ensureToken(req, res, next) {
-  console.log("checking token");
+  // console.log("checking token");
   try {
     // If we don't have tokens yet, get new ones
     if (!accessToken || !refreshToken) {
-      console.log("No tokens available. Getting new tokens...");
+      // console.log("No tokens available. Getting new tokens...");
       await getAuthTokens();
     }
     // If access token is expired but refresh token is still valid
@@ -148,7 +163,7 @@ async function ensureToken(req, res, next) {
       Date.now() > accessTokenExpiry &&
       Date.now() < refreshTokenExpiry
     ) {
-      console.log("Access token expired. Refreshing token...");
+      // console.log("Access token expired. Refreshing token...");
       await refreshAccessToken();
     }
     // If both tokens are expired, get new ones
@@ -168,7 +183,7 @@ async function ensureToken(req, res, next) {
 
 // Function to fetch all jobs and update cache
 async function fetchAllJobsAndUpdateCache() {
-  console.log("Fetching all jobs and updating cache...");
+  // console.log("Fetching all jobs and updating cache...");
   let allJobs = [];
 
   try {
@@ -235,9 +250,9 @@ async function fetchAllJobsAndUpdateCache() {
     // Update cache
     cachedJobs = allJobs;
     cacheTimestamp = Date.now();
-    console.log(
-      `Cached ${allJobs.length} jobs from ${totalPages} pages, sorted by creation date (newest first)`
-    );
+    // console.log(
+    //   `Cached ${allJobs.length} jobs from ${totalPages} pages, sorted by creation date (newest first)`
+    // );
 
     return allJobs;
   } catch (error) {
@@ -315,7 +330,7 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
 
           if (response.data && response.data.results) {
             // Return the single page result with a warning
-            console.log("Falling back to single page result");
+            // console.log("Falling back to single page result");
             return res.json({
               ...response.data,
               warning:
@@ -335,7 +350,7 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const paginatedJobs = allJobs.slice(startIndex, endIndex);
-    console.log("paginated jobs: ", paginatedJobs.length);
+    // console.log("paginated jobs: ", paginatedJobs.length);
     const totalPages = Math.ceil(allJobs.length / limit);
 
     // Construct response object similar to the API response
@@ -370,7 +385,7 @@ app.get("/api/jobs", ensureToken, async (req, res) => {
       (error.response.status === 401 || error.response.status === 403)
     ) {
       try {
-        console.log("Authentication error. Getting new tokens and retrying...");
+        // console.log("Authentication error. Getting new tokens and retrying...");
         await getAuthTokens();
         return res.redirect(
           "/api/jobs" +
@@ -427,7 +442,7 @@ app.get("/api/skywingsjobs", ensureToken, async (req, res) => {
 
           if (response.data && response.data.results) {
             // Return the single page result with a warning
-            console.log("Falling back to single page result");
+            // console.log("Falling back to single page result");
             return res.json({
               ...response.data,
               warning:
@@ -447,7 +462,7 @@ app.get("/api/skywingsjobs", ensureToken, async (req, res) => {
     const startIndex = (page - 1) * limit;
     const endIndex = page * limit;
     const paginatedJobs = allJobs.slice(startIndex, endIndex);
-    console.log("paginated jobs: ", paginatedJobs.length);
+    // console.log("paginated jobs: ", paginatedJobs.length);
     const totalPages = Math.ceil(allJobs.length / limit);
 
     // Construct response object similar to the API response
@@ -482,7 +497,7 @@ app.get("/api/skywingsjobs", ensureToken, async (req, res) => {
       (error.response.status === 401 || error.response.status === 403)
     ) {
       try {
-        console.log("Authentication error. Getting new tokens and retrying...");
+        // console.log("Authentication error. Getting new tokens and retrying...");
         await getAuthTokens();
         return res.redirect(
           "/api/jobs" +
@@ -524,10 +539,10 @@ app.get("/api/searchjobs", ensureToken, async (req, res) => {
 
     // Use cache if valid, otherwise fetch jobs
     if (isCacheValid) {
-      console.log("Using cached jobs data for search");
+      // console.log("Using cached jobs data for search");
       allJobs = cachedJobs;
     } else {
-      console.log("Cache invalid or empty, fetching all jobs for search");
+      // console.log("Cache invalid or empty, fetching all jobs for search");
       try {
         allJobs = await fetchAllJobsAndUpdateCache();
       } catch (error) {
@@ -544,7 +559,7 @@ app.get("/api/searchjobs", ensureToken, async (req, res) => {
 
           if (firstPageResponse.data && firstPageResponse.data.results) {
             allJobs = firstPageResponse.data.results;
-            console.log("Falling back to first page results only");
+            // console.log("Falling back to first page results only");
 
             // Sort by Created date (newest first)
             allJobs.sort((a, b) => {
@@ -644,13 +659,24 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Get all jobs at http://localhost:${PORT}/api/jobs`);
+// Routes
+app.use("/api/blog/posts", blogRouter);
+app.use("/api/blog/upload", blogUploadRouter);
+app.use("/api/enquiries", appRouter);
+app.use("/api/resumes", resumeRouter);
+app.use("/api/newsletter", newsletterRouter)
+app.use("/api/events", eventRouter)
 
-  // Initial token fetch
-  getAuthTokens().catch((err) => {
-    console.error("Failed to get initial tokens:", err.message);
+// api routes
+dbConnect().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    console.log(`Get all jobs at http://localhost:${PORT}/api/jobs`);
+
+    // Initial token fetch
+    getAuthTokens().catch((err) => {
+      console.error("Failed to get initial tokens:", err.message);
+    });
   });
 });
 
@@ -658,9 +684,9 @@ app.listen(PORT, () => {
 const TOKEN_REFRESH_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
 setInterval(async () => {
   try {
-    console.log("Performing scheduled token refresh...");
+    // console.log("Performing scheduled token refresh...");
     await getAuthTokens();
-    console.log("Token refresh successful");
+    // console.log("Token refresh successful");
   } catch (error) {
     console.error("Scheduled token refresh failed:", error.message);
   }
@@ -670,9 +696,9 @@ setInterval(async () => {
 const CACHE_REFRESH_INTERVAL = 25 * 60 * 1000; // 25 minutes (slightly less than cache duration)
 setInterval(async () => {
   try {
-    console.log("Performing scheduled cache refresh...");
+    // console.log("Performing scheduled cache refresh...");
     await fetchAllJobsAndUpdateCache();
-    console.log("Cache refresh successful");
+    // console.log("Cache refresh successful");
   } catch (error) {
     console.error("Scheduled cache refresh failed:", error.message);
   }
