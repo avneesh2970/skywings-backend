@@ -664,8 +664,8 @@ app.use("/api/blog/posts", blogRouter);
 app.use("/api/blog/upload", blogUploadRouter);
 app.use("/api/enquiries", appRouter);
 app.use("/api/resumes", resumeRouter);
-app.use("/api/newsletter", newsletterRouter)
-app.use("/api/events", eventRouter)
+app.use("/api/newsletter", newsletterRouter);
+app.use("/api/events", eventRouter);
 
 // api routes
 dbConnect().then(() => {
