@@ -11,6 +11,7 @@ import appRouter from "./routes/contactEnquiry/enquiry.js";
 import resumeRouter from "./routes/resume/resume.js";
 import newsletterRouter from "./routes/newsLetter/newsLetter.js";
 import eventRouter from "./routes/events/events.js";
+import newsRouter from "./routes/news/news.js";
 
 dotenv.config();
 
@@ -666,6 +667,7 @@ app.use("/api/enquiries", appRouter);
 app.use("/api/resumes", resumeRouter);
 app.use("/api/newsletter", newsletterRouter);
 app.use("/api/events", eventRouter);
+app.use("/api/news", newsRouter);
 
 // api routes
 dbConnect().then(() => {
