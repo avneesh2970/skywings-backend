@@ -14,6 +14,9 @@ const postSchema = new mongoose.Schema(
     featuredImage: {
       type: String,
     },
+    category: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

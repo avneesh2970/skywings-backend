@@ -35,12 +35,13 @@ blogRouter.get("/:id", async (req, res) => {
 blogRouter.post("/", async (req, res) => {
   console.log("POST /api/posts - Creating new post", req.body);
   try {
-    const { title, content, featuredImage } = req.body;
+    const { title, content, featuredImage, category } = req.body;
 
     const newPost = new BlogSchema({
       title,
       content,
       featuredImage, // this is being saved correctly
+      category,
     });
 
     const savedPost = await newPost.save();
@@ -55,10 +56,10 @@ blogRouter.post("/", async (req, res) => {
 // Update post
 blogRouter.put("/:id", async (req, res) => {
   try {
-    const { title, content, featuredImage } = req.body;
+    const { title, content, featuredImage, category } = req.body;
     const updatedPost = await BlogSchema.findByIdAndUpdate(
       req.params.id,
-      { title, content, featuredImage },
+      { title, content, featuredImage, category },
       { new: true }
     );
 
