@@ -32,10 +32,51 @@ adminRouter.post("/change-password", async (req, res) => {
   }
 });
 
+adminRouter.post("/update-user", async (req, res) => {
+  try {
+    const { username, email, phone, bio } = req.body;
+
+    // Find user by ID (from auth middleware)
+    const user = await AdminUser.findById("681856542cef31bbff228fb5");
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found. please add user in database manually",
+      });
+    }
+
+    if (username && username.trim()) {
+      user.username = username;
+    }
+
+    if (email && email.trim()) {
+      user.email = email;
+    }
+
+    if (phone && phone.trim()) {
+      user.phone = phone;
+    }
+
+    if (bio && bio.trim()) {
+      user.bio = bio;
+    }
+
+    await user.save(); // This will trigger the pre-save hook to hash the password
+
+    res
+      .status(200)
+      .json({ message: "user updated successfully", success: true });
+  } catch (error) {
+    console.error("Error updating user profile:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 adminRouter.get("/get-user", async (req, res) => {
   try {
     // Find user by ID (from auth middleware)
-    const user = await AdminUser.findById("681856542cef31bbff228fb5");
+    const user = await AdminUser.findById("681856542cef31bbff228fb5").select(
+      "-password"
+    );
     if (!user) {
       return res
         .status(404)
