@@ -1,7 +1,5 @@
 import express from "express";
 import AdminUser from "../../models/AdminUser.js";
-// import bcrypt from 'bcrypt';
-// import jwt from 'jsonwebtoken';
 
 const adminRouter = express.Router();
 
