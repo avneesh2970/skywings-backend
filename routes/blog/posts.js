@@ -6,10 +6,10 @@ import fs from "fs";
 
 // Get all posts
 blogRouter.get("/", async (req, res) => {
-  console.log("GET /api/posts - Fetching all posts");
+  // console.log("GET /api/posts - Fetching all posts");
   try {
     const posts = await BlogSchema.find().sort({ createdAt: -1 });
-    console.log(`Found ${posts.length} posts`);
+    // console.log(`Found ${posts.length} posts`);
     res.json(posts);
   } catch (error) {
     console.error("Error fetching posts:", error);
@@ -33,7 +33,7 @@ blogRouter.get("/:id", async (req, res) => {
 
 // Create post
 blogRouter.post("/", async (req, res) => {
-  console.log("POST /api/posts - Creating new post", req.body);
+  // console.log("POST /api/posts - Creating new post", req.body);
   try {
     const { title, content, featuredImage, category } = req.body;
 
@@ -45,7 +45,7 @@ blogRouter.post("/", async (req, res) => {
     });
 
     const savedPost = await newPost.save();
-    console.log("Post created successfully:", savedPost._id);
+    // console.log("Post created successfully:", savedPost._id);
     res.status(201).json(savedPost);
   } catch (error) {
     console.error("Error creating post:", error);
@@ -88,7 +88,7 @@ blogRouter.delete("/:id", async (req, res) => {
       const imagePath = path.join(__dirname, "..", post.featuredImage); // directly join with server root
       if (fs.existsSync(imagePath)) {
         fs.unlinkSync(imagePath);
-        console.log("Deleted image:", imagePath);
+        // console.log("Deleted image:", imagePath);
       } else {
         console.warn("Image not found for deletion:", imagePath);
       }

@@ -4,7 +4,7 @@ import { Enquiry } from "../../models/ContactEnquiry.js";
 
 // Routes
 appRouter.post("/", async (req, res) => {
-  console.log("enquiry", req.body);
+  // console.log("enquiry", req.body);
   try {
     const newEnquiry = new Enquiry(req.body);
     const savedEnquiry = await newEnquiry.save();
