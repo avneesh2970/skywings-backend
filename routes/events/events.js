@@ -194,44 +194,50 @@ eventRouter.patch("/:id", upload.single("image"), async (req, res) => {
       organizer,
     } = req.body
 
-    // Create update data object with only provided fields
-    const updateData = {}
+    // Get the existing event
+    const event = await Event.findById(req.params.id)
+    if (!event) {
+      return res.status(404).json({ message: "Event not found" })
+    }
 
-    if (title !== undefined) updateData.title = title
-    if (description !== undefined) updateData.description = description
-    if (startDate !== undefined) updateData.startDate = startDate
-    if (endDate !== undefined) updateData.endDate = endDate
-    if (location !== undefined) updateData.location = location
-    if (category !== undefined) updateData.category = category
-    if (status !== undefined) updateData.status = status
-    if (featured !== undefined) updateData.featured = featured === "true"
-    if (registrationUrl !== undefined) updateData.registrationUrl = registrationUrl
-    if (capacity !== undefined) updateData.capacity = capacity
-    if (organizer !== undefined) updateData.organizer = organizer
+    // Update fields if provided
+    if (title !== undefined) event.title = title
+    if (description !== undefined) event.description = description
+    if (startDate !== undefined) event.startDate = startDate
+    if (endDate !== undefined) event.endDate = endDate
+    if (location !== undefined) event.location = location
+    if (category !== undefined) event.category = category
+    if (featured !== undefined) event.featured = featured === "true"
+    if (registrationUrl !== undefined) event.registrationUrl = registrationUrl
+    if (capacity !== undefined) event.capacity = capacity
+    if (organizer !== undefined) event.organizer = organizer
+
+    // Handle status specifically for restoration
+    if (status !== undefined) {
+      if (status === "restore") {
+        // For restoration, force recalculation by setting to undefined
+        // This will trigger the pre-save hook to calculate based on dates
+        event.status = undefined
+      } else {
+        event.status = status
+      }
+    }
 
     // Add image if uploaded
     if (req.file) {
-      // Get the old event to delete previous image if exists
-      const oldEvent = await Event.findById(req.params.id)
-      if (oldEvent && oldEvent.imageUrl) {
-        const oldImagePath = path.join(process.cwd(), oldEvent.imageUrl)
+      // Delete previous image if exists
+      if (event.imageUrl) {
+        const oldImagePath = path.join(process.cwd(), event.imageUrl)
         if (fs.existsSync(oldImagePath)) {
           fs.unlinkSync(oldImagePath)
         }
       }
 
-      updateData.imageUrl = `/uploads/events/${req.file.filename}`
+      event.imageUrl = `/uploads/events/${req.file.filename}`
     }
 
-    const updatedEvent = await Event.findByIdAndUpdate(
-      req.params.id,
-      { $set: updateData },
-      { new: true, runValidators: true },
-    )
-
-    if (!updatedEvent) {
-      return res.status(404).json({ message: "Event not found" })
-    }
+    // Save the updated event - this will trigger the pre-save hook
+    const updatedEvent = await event.save()
 
     res.status(200).json({
       message: "Event updated successfully",
@@ -270,6 +276,57 @@ eventRouter.delete("/:id", async (req, res) => {
     console.error("Error deleting event:", err)
     res.status(500).json({
       message: "Failed to delete event",
+      error: err.message,
+    })
+  }
+})
+
+// Bulk update events (for cancelling or deleting multiple events)
+eventRouter.post("/bulk", async (req, res) => {
+  try {
+    const { ids, action } = req.body
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No event IDs provided" })
+    }
+
+    if (!action) {
+      return res.status(400).json({ message: "No action specified" })
+    }
+
+    if (action === "cancel") {
+      // Update all events to cancelled status
+      await Event.updateMany(
+        { _id: { $in: ids } },
+        { $set: { status: "cancelled" } }
+      )
+      
+      res.status(200).json({ message: `${ids.length} events cancelled successfully` })
+    } else if (action === "delete") {
+      // Get all events to delete their images
+      const events = await Event.find({ _id: { $in: ids } })
+      
+      // Delete image files
+      for (const event of events) {
+        if (event.imageUrl) {
+          const filePath = path.join(process.cwd(), event.imageUrl)
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath)
+          }
+        }
+      }
+      
+      // Delete the events
+      await Event.deleteMany({ _id: { $in: ids } })
+      
+      res.status(200).json({ message: `${ids.length} events deleted successfully` })
+    } else {
+      res.status(400).json({ message: "Invalid action specified" })
+    }
+  } catch (err) {
+    console.error("Error performing bulk action:", err)
+    res.status(500).json({
+      message: "Failed to perform bulk action",
       error: err.message,
     })
   }

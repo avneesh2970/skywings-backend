@@ -35,7 +35,7 @@ const EventSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["upcoming", "ongoing", "past", "cancelled"],
+      enum: ["upcoming", "ongoing", "past", "cancelled", ""],
       default: "upcoming",
     },
     featured: {
@@ -65,6 +65,7 @@ EventSchema.index({ title: "text", description: "text", location: "text", catego
 EventSchema.pre("save", function (next) {
   const now = new Date()
 
+  // If status is empty string or not "cancelled", calculate based on dates
   if (this.status !== "cancelled") {
     if (now < this.startDate) {
       this.status = "upcoming"
@@ -75,6 +76,23 @@ EventSchema.pre("save", function (next) {
     }
   }
 
+  next()
+})
+
+// Also handle updates via findOneAndUpdate
+EventSchema.pre("findOneAndUpdate", function (next) {
+  const update = this.getUpdate()
+  
+  // If we're explicitly setting status to empty string, we want to recalculate
+  if (update.$set && update.$set.status === "") {
+    // Remove the status field so it will be recalculated on save
+    delete update.$set.status
+    
+    // Force the document to be retrieved and the save middleware to run
+    this.setOptions({ new: true, runValidators: true });
+    this.findOneAndUpdate({}, { $set: { updatedAt: new Date() } });
+  }
+  
   next()
 })
 

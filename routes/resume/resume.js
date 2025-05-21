@@ -77,7 +77,7 @@ resumeRouter.post("/", upload.single("resume"), async (req, res) => {
 // Get all resumes with pagination and filtering
 resumeRouter.get("/", async (req, res) => {
   try {
-    const { search, status, sort = "createdAt", order = "desc", page = 1, limit = 10 } = req.query
+    const { search, status, sort = "createdAt", order = "desc", page = 1, limit = 10, startDate, endDate } = req.query
 
     // Build query
     const query = {}
@@ -96,6 +96,14 @@ resumeRouter.get("/", async (req, res) => {
     // Add status filter if provided
     if (status) {
       query.status = status
+    }
+
+    // Add date range filter if provided
+    if (startDate && endDate) {
+      query.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      }
     }
 
     // Count total documents matching the query
@@ -198,5 +206,61 @@ resumeRouter.delete("/:id", async (req, res) => {
     })
   }
 })
+
+// Bulk operations endpoint
+resumeRouter.post("/bulk", async (req, res) => {
+  try {
+    const { action, ids, status, notes } = req.body;
+
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "No resume IDs provided" });
+    }
+
+    if (action === "update") {
+      const updateData = {};
+      if (status) updateData.status = status;
+      if (notes !== undefined) updateData.notes = notes;
+
+      const result = await Resume.updateMany(
+        { _id: { $in: ids } },
+        { $set: updateData }
+      );
+
+      return res.status(200).json({
+        message: `Updated ${result.modifiedCount} resumes successfully`,
+        count: result.modifiedCount,
+      });
+    } else if (action === "delete") {
+      // First, get all resumes to delete their files
+      const resumesToDelete = await Resume.find({ _id: { $in: ids } });
+      
+      // Delete associated files
+      for (const resume of resumesToDelete) {
+        if (resume.resumeUrl) {
+          const filePath = path.join(process.cwd(), resume.resumeUrl);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      }
+
+      // Delete the documents
+      const result = await Resume.deleteMany({ _id: { $in: ids } });
+
+      return res.status(200).json({
+        message: `Deleted ${result.deletedCount} resumes successfully`,
+        count: result.deletedCount,
+      });
+    } else {
+      return res.status(400).json({ message: "Invalid action specified" });
+    }
+  } catch (err) {
+    console.error("Error performing bulk operation:", err);
+    res.status(500).json({
+      message: "Failed to perform bulk operation",
+      error: err.message,
+    });
+  }
+});
 
 export default resumeRouter
