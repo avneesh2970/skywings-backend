@@ -1,5 +1,50 @@
 import mongoose from "mongoose"
 
+// Define the registration schema
+const RegistrationSchema = new mongoose.Schema({
+  fullName: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  phoneNumber: {
+    type: String,
+    required: true,
+    trim: true,
+  },
+  willAttend: {
+    type: String,
+    enum: ["yes", "no"],
+    default: "yes",
+  },
+  numberOfGuests: {
+    type: Number,
+    default: 1,
+  },
+  comment: {
+    type: String,
+    default: "",
+  },
+  registrationTimestamp: {
+    type: Date,
+    default: Date.now,
+  },
+  registrationId: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  eventCode: {
+    type: String,
+    required: true,
+  },
+})
+
 const EventSchema = new mongoose.Schema(
   {
     title: {
@@ -54,6 +99,8 @@ const EventSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Add the registeredUsers field to store all registrations
+    registeredUsers: [RegistrationSchema],
   },
   { timestamps: true },
 )
@@ -82,17 +129,17 @@ EventSchema.pre("save", function (next) {
 // Also handle updates via findOneAndUpdate
 EventSchema.pre("findOneAndUpdate", function (next) {
   const update = this.getUpdate()
-  
+
   // If we're explicitly setting status to empty string, we want to recalculate
   if (update.$set && update.$set.status === "") {
     // Remove the status field so it will be recalculated on save
     delete update.$set.status
-    
+
     // Force the document to be retrieved and the save middleware to run
-    this.setOptions({ new: true, runValidators: true });
-    this.findOneAndUpdate({}, { $set: { updatedAt: new Date() } });
+    this.setOptions({ new: true, runValidators: true })
+    this.findOneAndUpdate({}, { $set: { updatedAt: new Date() } })
   }
-  
+
   next()
 })
 

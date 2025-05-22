@@ -19,7 +19,16 @@ appRouter.post("/", async (req, res) => {
 
 appRouter.get("/", async (req, res) => {
   try {
-    const { search, status, enquireType, sort = "createdAt", order = "desc", page = 1, limit = 10 } = req.query;
+    const {
+      search,
+      status,
+      enquireType,
+      sort = "createdAt",
+      order = "desc",
+      page = 1,
+      limit = 10,
+      duplicatesOnly = "false",
+    } = req.query;
 
     // Build query
     const query = {};
@@ -46,6 +55,24 @@ appRouter.get("/", async (req, res) => {
       query.enquire = enquireType;
     }
 
+    // Find duplicate emails
+    const duplicateEmails = await Enquiry.aggregate([
+      { $match: { email: { $ne: "" } } },
+      { $group: { _id: "$email", count: { $sum: 1 }, ids: { $push: "$_id" } } },
+      { $match: { count: { $gt: 1 } } },
+    ]);
+
+    // Get all duplicate email IDs
+    const duplicateIds = new Set();
+    duplicateEmails.forEach((dup) =>
+      dup.ids.forEach((id) => duplicateIds.add(id.toString()))
+    );
+
+    // If duplicatesOnly is true, add duplicate filter to query
+    if (duplicatesOnly === "true") {
+      query._id = { $in: Array.from(duplicateIds).map((id) => id) };
+    }
+
     // Count total documents matching the query
     const total = await Enquiry.countDocuments(query);
 
@@ -55,12 +82,37 @@ appRouter.get("/", async (req, res) => {
       .skip((page - 1) * limit)
       .limit(Number.parseInt(limit) || 0);
 
+    // Mark duplicate enquiries
+    const duplicateEmailsMap = {};
+    duplicateEmails.forEach((dup) => {
+      duplicateEmailsMap[dup._id] = dup.count;
+    });
+
+    // Add duplicate info to each enquiry
+    const enhancedEnquiries = enquiries.map((enquiry) => {
+      const isDuplicate = duplicateIds.has(enquiry._id.toString());
+      const duplicateCount = duplicateEmailsMap[enquiry.email] || 0;
+
+      return {
+        ...enquiry._doc,
+        isDuplicate,
+        duplicateCount: isDuplicate ? duplicateCount : 0,
+      };
+    });
+
+    // Get total count of duplicates
+    const totalDuplicates = duplicateIds.size;
+
     res.status(200).json({
       total,
       page: Number.parseInt(page),
       limit: Number.parseInt(limit) || 0,
       totalPages: Math.ceil(total / (Number.parseInt(limit) || total)),
-      data: enquiries,
+      data: enhancedEnquiries,
+      duplicates: {
+        total: totalDuplicates,
+        emails: duplicateEmails,
+      },
     });
   } catch (err) {
     res
@@ -78,7 +130,27 @@ appRouter.get("/:id", async (req, res) => {
       return res.status(404).json({ message: "Enquiry not found" });
     }
 
-    res.status(200).json(enquiry);
+    // Check if this is a duplicate email
+    const duplicateCount = await Enquiry.countDocuments({
+      email: enquiry.email,
+    });
+    const isDuplicate = duplicateCount > 1;
+
+    // Find other enquiries with the same email
+    let duplicateEnquiries = [];
+    if (isDuplicate) {
+      duplicateEnquiries = await Enquiry.find({
+        email: enquiry.email,
+        _id: { $ne: enquiry._id },
+      }).select("name email contact createdAt status");
+    }
+
+    res.status(200).json({
+      ...enquiry._doc,
+      isDuplicate,
+      duplicateCount: isDuplicate ? duplicateCount : 0,
+      duplicateEnquiries: isDuplicate ? duplicateEnquiries : [],
+    });
   } catch (err) {
     res.status(500).json({
       message: "Failed to fetch enquiry",
@@ -97,8 +169,8 @@ appRouter.patch("/:id", async (req, res) => {
     if (notes !== undefined) updateData.notes = notes;
 
     const updatedEnquiry = await Enquiry.findByIdAndUpdate(
-      req.params.id, 
-      { $set: updateData }, 
+      req.params.id,
+      { $set: updateData },
       { new: true }
     );
 
