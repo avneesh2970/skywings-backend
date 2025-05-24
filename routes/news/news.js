@@ -79,14 +79,37 @@ newsRouter.get("/:id", async (req, res) => {
     }
 
     // Increment view count
-    news.views += 1
-    await news.save()
+    // news.views += 1
+    // await news.save()
 
     res.status(200).json(news)
   } catch (err) {
     console.error("Error fetching news article:", err)
     res.status(500).json({
       message: "Failed to fetch news article",
+      error: err.message,
+    })
+  }
+})
+
+// update view count 
+newsRouter.patch("/update-views/:id", async (req, res) => {
+  try {
+    const news = await News.findById(req.params.id)
+
+    if (!news) {
+      return res.status(404).json({ message: "News article not found" })
+    }
+
+    // Increment view count
+    news.views += 1
+    await news.save()
+
+    res.status(200).json(news)
+  } catch (err) {
+    console.error("Error updating news article views:", err)
+    res.status(500).json({
+      message: "Failed to fetch news article views",
       error: err.message,
     })
   }
