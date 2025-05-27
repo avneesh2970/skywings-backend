@@ -13,6 +13,7 @@ import newsletterRouter from "./routes/newsLetter/newsLetter.js";
 import eventRouter from "./routes/events/events.js";
 import newsRouter from "./routes/news/news.js";
 import adminRouter from "./routes/adminUser/admin.js";
+import galleryRouter from "./routes/gallery/gallery.js";
 
 dotenv.config();
 
@@ -668,6 +669,7 @@ app.use("/api/enquiries", appRouter);
 app.use("/api/resumes", resumeRouter);
 app.use("/api/newsletter", newsletterRouter);
 app.use("/api/events", eventRouter);
+app.use("/api/gallery", galleryRouter);
 app.use("/api/news", newsRouter);
 app.use("/api/admin", adminRouter);
 
