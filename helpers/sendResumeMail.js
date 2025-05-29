@@ -1,28 +1,31 @@
-import nodeMailer from 'nodemailer';
+import nodeMailer from "nodemailer";
 
-export const sendEmail = async(options) => {
-    const transporter = nodeMailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        service: process.env.SMTP_SERVICE,
-        auth: {
-            user: process.env.SMTP_MAIL,
-            pass: process.env.SMTP_PASSWORD,
-        },
-    });
+export const sendEmail = async (options) => {
+  const transporter = nodeMailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    service: process.env.SMTP_SERVICE,
+    auth: {
+      user: process.env.SMTP_MAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
 
-    const mailOption = {
-        from: process.env.SMTP_MAIL,
-        to: options.email,
-        subject: options.subject,
-        html: `
+  const mailOption = {
+    from: process.env.SMTP_MAIL,
+    // to: options.email,
+    to: "atulsemwal77@gmail.com",
+    subject: options.subject,
+    html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9;">
             <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
               <div style="background-color: #4f46e5; padding: 20px; color: white; text-align: center;">
                 <h2>Sky-Wings Career Portal</h2>
               </div>
               <div style="padding: 30px;">
-                <p style="font-size: 16px; color: #333;">Dear ${options.fullName || 'Candidate'},</p>
+                <p style="font-size: 16px; color: #333;">Dear ${
+                  options.fullName || "Candidate"
+                },</p>
                 <p style="font-size: 15px; color: #555;">Thank you for submitting your resume! We have successfully received your application.</p>
                 
                 <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -30,31 +33,45 @@ export const sendEmail = async(options) => {
                   <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Full Name:</td>
-                      <td style="padding: 8px 0; color: #333;">${options.fullName}</td>
+                      <td style="padding: 8px 0; color: #333;">${
+                        options.fullName
+                      }</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Email:</td>
-                      <td style="padding: 8px 0; color: #333;">${options.email}</td>
+                      <td style="padding: 8px 0; color: #333;">${
+                        options.email
+                      }</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Contact Number:</td>
-                      <td style="padding: 8px 0; color: #333;">${options.contactNumber}</td>
+                      <td style="padding: 8px 0; color: #333;">${
+                        options.contactNumber
+                      }</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Position Applied:</td>
-                      <td style="padding: 8px 0; color: #333;">${options.jobAppliedFor}</td>
+                      <td style="padding: 8px 0; color: #333;">${
+                        options.jobAppliedFor
+                      }</td>
                     </tr>
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Location:</td>
-                      <td style="padding: 8px 0; color: #333;">${options.city}, ${options.state}</td>
+                      <td style="padding: 8px 0; color: #333;">${
+                        options.city
+                      }, ${options.state}</td>
                     </tr>
-                    ${options.resumeUrl ? `
+                    ${
+                      options.resumeUrl
+                        ? `
                     <tr>
                       <td style="padding: 8px 0; color: #666; font-weight: bold;">Resume:</td>
                       <td style="padding: 8px 0;">
                         <a href="${options.resumeUrl}" style="color: #4f46e5; text-decoration: none; font-weight: bold;">📄 ${options.resumeFileName}</a>
                       </td>
-                    </tr>` : ''}
+                    </tr>`
+                        : ""
+                    }
                   </table>
                 </div>
 
@@ -79,7 +96,7 @@ export const sendEmail = async(options) => {
             </div>
           </div>
         `,
-    };
+  };
 
-    await transporter.sendMail(mailOption);
+  await transporter.sendMail(mailOption);
 };
