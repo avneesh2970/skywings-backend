@@ -11,13 +11,6 @@ export const sendEmail = async(options)=>{
         },
     });
 
-    // const mailOption = {
-    //     from: process.env.SMTP_MAIL,
-    //     to: options.email,
-    //     subject: options.subject,
-    //     text: `${options.message} \n\n Email of user who sent this message: ${options.userEmail}`,
-    //   };
-
     const mailOption = {
         from: process.env.SMTP_MAIL,
         to: options.email,
