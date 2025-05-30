@@ -39,7 +39,7 @@ newsletterRouter.post("/", async (req, res) => {
       email: email, // Receiver
       subject: "SkyWings",
       firstName,
-      userEmail: "atulsemwal332@gmail.com", // Sender
+      userEmail: "career@assuredjob.com", // Sender
     });
 
     res.status(201).json({
