@@ -19,7 +19,7 @@ export const sendEmail = async(options)=>{
           <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9;">
             <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
               <div style="background-color: #4f46e5; padding: 20px; color: white; text-align: center;">
-                <h2>Sky-Wings Newsletter</h2>
+                <h2>Skywings Newsletter</h2>
               </div>
               <div style="padding: 30px;">
                 <p style="font-size: 16px; color: #333;">Hi there,</p>
@@ -30,12 +30,12 @@ export const sendEmail = async(options)=>{
                 <p style="font-size: 14px; color: #777;">Sent from: <strong>
                 skywings@gmail.com
                 </strong></p>
-                <p style="font-size: 14px; color: #555;">We’ll get back to you as soon as possible. Thanks for being part of Sky-Wings ✈️</p>
+                <p style="font-size: 14px; color: #555;">We’ll get back to you as soon as possible. Thanks for being part of Skywings ✈️</p>
                 <br/>
-                <p style="font-size: 14px; color: #999;">– The Sky-Wings Team</p>
+                <p style="font-size: 14px; color: #999;">– The Skywings Team</p>
               </div>
               <div style="background-color: #f1f1f1; text-align: center; padding: 15px; font-size: 12px; color: #888;">
-                © 2025 Sky-Wings. All rights reserved.
+                © 2025 Skywings. All rights reserved.
               </div>
             </div>
           </div>
