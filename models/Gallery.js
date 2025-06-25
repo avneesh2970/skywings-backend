@@ -1,4 +1,4 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
 
 const GallerySchema = new mongoose.Schema(
   {
@@ -20,13 +20,22 @@ const GallerySchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      enum: ["nature", "urban", "portrait", "landscape", "event", "product", "other"],
-      default: "other"
+      enum: [
+        "campus drive",
+        "festivals",
+        "outings",
+        "work culture",
+        "fun",
+        "other",
+      ],
+      default: "other",
     },
-    tags: [{
-      type: String,
-      trim: true,
-    }],
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     featured: {
       type: Boolean,
       default: false,
@@ -58,23 +67,24 @@ const GallerySchema = new mongoose.Schema(
       default: 0,
     },
   },
-  { 
-    timestamps: true 
+  {
+    timestamps: true,
   }
-)
+);
 
 // Create text index for searching
-GallerySchema.index({ 
-  title: "text", 
-  description: "text", 
+GallerySchema.index({
+  title: "text",
+  description: "text",
   tags: "text",
-  category: "text" 
-})
+  category: "text",
+});
 
 // Add a method to increment views
-GallerySchema.methods.incrementViews = function() {
+GallerySchema.methods.incrementViews = function () {
   this.views += 1;
   return this.save();
 };
 
-export const Gallery = mongoose.models.Gallery || mongoose.model("Gallery", GallerySchema)
+export const Gallery =
+  mongoose.models.Gallery || mongoose.model("Gallery", GallerySchema);

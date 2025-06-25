@@ -1,21 +1,21 @@
-import nodeMailer from 'nodemailer';
+import nodeMailer from "nodemailer";
 
-export const sendEmail = async(options)=>{
-    const transporter = nodeMailer.createTransport({
-        host : process.env.SMTP_HOST,
-        port : process.env.SMTP_PORT,
-        service : process.env.SMTP_SERVICE,
-        auth: {
-            user : process.env.SMTP_MAIL,
-            pass : process.env.SMTP_PASSWORD,
-        },
-    });
+export const sendEmail = async (options) => {
+  const transporter = nodeMailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    service: process.env.SMTP_SERVICE,
+    auth: {
+      user: process.env.SMTP_MAIL,
+      pass: process.env.SMTP_PASSWORD,
+    },
+  });
 
-    const mailOption = {
-        from: process.env.SMTP_MAIL,
-        to: options.email,
-        subject: options.subject,
-        html: `
+  const mailOption = {
+    from: process.env.SMTP_MAIL,
+    to: options.email,
+    subject: options.subject,
+    html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f9f9f9;">
             <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
               <div style="background-color: #4f46e5; padding: 20px; color: white; text-align: center;">
@@ -40,8 +40,7 @@ export const sendEmail = async(options)=>{
             </div>
           </div>
         `,
-      };
-      
-      
-    await transporter.sendMail(mailOption);
-}
+  };
+
+  await transporter.sendMail(mailOption);
+};
