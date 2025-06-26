@@ -1,12 +1,24 @@
 import express from "express";
 const appRouter = express.Router();
 import { Enquiry } from "../../models/ContactEnquiry.js";
+import { sendContactEmail } from "../../helpers/sendContact.js";
 
 // Routes
 appRouter.post("/", async (req, res) => {
   try {
+    console.log("req.body", req.body);
     const newEnquiry = new Enquiry(req.body);
     const savedEnquiry = await newEnquiry.save();
+
+    //use nodemailer here to send mail
+   await sendContactEmail({
+      fullName: req.body.name,
+      email: req.body.email,
+      contactNumber: req.body.contact,
+      category: req.body.enquire,
+      message: req.body.enquireDetail,
+      timestamp: new Date().toISOString(),
+    });
     res
       .status(201)
       .json({ message: "Enquiry Saved Successfully", data: savedEnquiry });
